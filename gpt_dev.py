@@ -131,7 +131,7 @@ print(decode(model.generate(torch.zeros((1, 1), dtype=torch.long), max_new_token
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
 batch_size = 32
-for steps in range(10000):
+for steps in range(100):
     # sample a batch of data
     xb, yb = get_batch("train")
 
@@ -146,3 +146,22 @@ print(loss.item())
 print(
     decode(model.generate(torch.zeros((1, 1), dtype=torch.long), max_new_tokens=500)[0].tolist())
 )  # get the better model than before, but it is also not good model
+
+
+# The mathematical trick in self-attention
+# consider the following toy example:
+
+torch.manual_seed(1337)
+B, T, C = 4, 8, 2  # batch, time, channels
+x = torch.randn(B, T, C)
+print(x.shape)
+
+# let x[b, t] = mean_{i<=t} x[b,i]
+xbow = torch.zeros((B, T, C))
+for b in range(B):
+    for t in range(T):
+        xprev = x[b, : t + 1]  # (t, C)
+        xbow[b, t] = torch.mean(xprev, 0)
+
+print(x[0])
+print(xbow[0])
