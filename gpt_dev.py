@@ -164,4 +164,21 @@ for b in range(B):
         xbow[b, t] = torch.mean(xprev, 0)
 
 print(x[0])
-print(xbow[0])
+print(xbow[0]) # first row is same as the x[0], and the second row is the sum of first and second row
+
+
+# version up
+tril = torch.tril(torch.ones(T, T))
+wei = torch.zeros((T, T))
+wei = wei.masked_fill(tril==0, float('-inf'))
+wei = F.softmax(wei, dim=-1)
+xbow3 = wei @ x
+torch.allclose(xbow, xbow3)
+
+torch.manual_seed(42)
+a = torch.tril(torch.ones(3, 3))
+a = a / torch.sum(a, 1, keepdim=True)
+b = torch.randint(0, 10, (3,2)).float()
+c = a @ b
+print("a=")
+print(a)
