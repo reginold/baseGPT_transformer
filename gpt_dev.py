@@ -164,13 +164,13 @@ for b in range(B):
         xbow[b, t] = torch.mean(xprev, 0)
 
 print(x[0])
-print(xbow[0]) # first row is same as the x[0], and the second row is the sum of first and second row
+print(xbow[0])  # first row is same as the x[0], and the second row is the sum of first and second row
 
 
 # version up
 tril = torch.tril(torch.ones(T, T))
 wei = torch.zeros((T, T))
-wei = wei.masked_fill(tril==0, float('-inf'))
+wei = wei.masked_fill(tril == 0, float("-inf"))
 wei = F.softmax(wei, dim=-1)
 xbow3 = wei @ x
 torch.allclose(xbow, xbow3)
@@ -178,7 +178,33 @@ torch.allclose(xbow, xbow3)
 torch.manual_seed(42)
 a = torch.tril(torch.ones(3, 3))
 a = a / torch.sum(a, 1, keepdim=True)
-b = torch.randint(0, 10, (3,2)).float()
+b = torch.randint(0, 10, (3, 2)).float()
 c = a @ b
 print("a=")
 print(a)
+
+# version self-attention
+torch.manual_seed(1337)
+B, T, C = 4, 8, 32  # batch, time, channels
+x = torch.randn(B, T, C)
+
+# a single head perform self-attention
+head_size = 16
+key = nn.Linear(C, head_size, bias=False)
+query = nn.Linear(C, head_size, bias=False)
+value = nn.Linear(C, head_size, bias=False)
+k = key(x)  # (B, T, 16)
+q = query(x)  # (B, T, 16)
+wei = q @ k.transpose(-2, -1)  # (B, T, 16) @ (B, 16, T) ---> (B, T, T)
+
+tril = torch.tril(torch.ones(T, T))
+# wei = torch.zeros((T, T))
+wei = wei.masked_fill(tril == 0, float("-inf"))
+wei = F.softmax(wei, dim=-1)
+
+v = value(x)
+out = wei @ v
+# out = wei @ x
+
+print(out.shape)
+print(tril)
