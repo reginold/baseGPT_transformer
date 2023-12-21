@@ -7,7 +7,7 @@ import torch.nn as nn
 # coding from the transformer paper: https://arxiv.org/pdf/1706.03762.pdf 
 # 1. inputEmbedding
 # 2. PositionalEncoding
-# 3. 
+# 3. LayerNormalization
 
 
 class InputEmbeddings(nn.Module):
