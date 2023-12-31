@@ -9,11 +9,12 @@ import torch.nn as nn
 # 2. PositionalEncoding
 # 3. LayerNormalization
 # 4. FeedForward 
+# 5. Multi-head attention
 
 
 class InputEmbeddings(nn.Module):
 
-    def __inin__(self, d_model: int, vocab_size: int):
+    def __init__(self, d_model: int, vocab_size: int):
         super().__init__()
         self.d_model = d_model
         self.vocab_size = vocab_size
@@ -37,8 +38,8 @@ class InputEmbeddings(nn.Module):
     # #                 [4.]])
 class PositionalEncoding(nn.Module):
 
-    def __init__(self, d_model: int, seq_len: int, dropout: float) -> None
-        super.__init__()
+    def __init__(self, d_model: int, seq_len: int, dropout: float) -> None:
+        super().__init__()
         self.d_model = d_model
         self.seq_len = seq_len
         self.dropout = nn.Dropout(dropout)
@@ -57,14 +58,14 @@ class PositionalEncoding(nn.Module):
         self.register_buffer("pe", pe)
 
     def forward(self, x):
-        x = x + (self.pe[:, :x.shape[1], :]).requires_grad_(Flase)
+        x = x + (self.pe[:, :x.shape[1], :]).requires_grad_(False)
         return self.dropout(x)
 
 
 class LayerNormalization(nn.Module):
 
     def __init__(self, eps: float = 10**-6) -> None:
-        super.__init__()
+        super().__init__()
         self.eps = eps
         self.alpha = nn.Parameter(torch.ones(1)) # Multiplied
         self.bias = nn.Parameter(torch.zeros(1)) # Added
@@ -78,18 +79,14 @@ class LayerNormalization(nn.Module):
 class FeedForwardBlock(nn.Module):
 
     def __init__(self, d_model: int, d_ff: int, dropout: float) -> None:
-        super.__init__()
-        self.d_model = 512
-        self.d_ff = 2048
+        super().__init__()
 
         self.fc1 = nn.Linear(d_model, d_ff)
         self.dropout = nn.Dropout(dropout)
         self.fc2 = nn.Linear(d_ff, d_model)
     
     def forward(self, x):
-        x = self.relu(self.fc1(x))
+        x = torch.relu(self.fc1(x))
         return self.fc2(self.dropout(x))
-        
-
-
+         
 
