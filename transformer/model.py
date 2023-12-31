@@ -10,7 +10,9 @@ import torch.nn as nn
 # 3. LayerNormalization
 # 4. FeedForward 
 # 5. Multi-head attention
-
+# 6. Residual connection
+# 7. Encoder Block
+# 8. Encoder
 
 class InputEmbeddings(nn.Module):
 
@@ -140,4 +142,43 @@ class MultiheadAttention(nn.Module):
         # (batch, seq_len, d_model) -> (batch, seq_len, d_model)
         return self.w_o(x) 
 
+
+class ResidualConnection(nn.Module):
+
+    def __init__(self, dropout: float):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+        self.norm = LayerNormalization()
+
+    def forward(self, x, sublayer):
+        return x + self.dropout(sublayer(self.norm(x)))
+
+
+class EncoderBlock(nn.Module):
+
+    def __init__(self,
+                attention_block: MultiheadAttention,
+                feed_forward_block: FeedForwardBlock,
+                dropout: float):
+        super().__init__()
+        self.attention_block = attention_block
+        self.feed_forward_block = feed_forward_block
+        self.residual_connection = nn.ModuleList(ResidualConnection(dropout) for _ in range(2))
+
+    def forward(self, x, src_mask):
+        x = self.residual_connection[0](x, lambda x: self.attention_block(x, x, x, src_mask))
+        x = self.residual_connection[1](x, self.feed_forward_block)
+        return x
+
+class Encoder(nn.Module):
+    
+    def __init__(self, layers: nn.ModuleList):
+        super().__init__()
+        self.layers = layers
+        self.norm = LayerNormalization()
+
+    def forward(self, x, mask):
+        for layer in self.layers:
+            x = layer(x, mask)
+        return self.norm(x)
 
