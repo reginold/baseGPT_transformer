@@ -8,6 +8,7 @@ import torch.nn as nn
 # 1. inputEmbedding
 # 2. PositionalEncoding
 # 3. LayerNormalization
+# 4. FeedForward 
 
 
 class InputEmbeddings(nn.Module):
@@ -72,6 +73,23 @@ class LayerNormalization(nn.Module):
         mean = x.mean(dim = -1, keepdim=True)
         std = x.std(dim = -1, keepdim=True)
         return self.alpha * (x - mean) / (std + self.eps) + self.bias
+
+
+class FeedForwardBlock(nn.Module):
+
+    def __init__(self, d_model: int, d_ff: int, dropout: float) -> None:
+        super.__init__()
+        self.d_model = 512
+        self.d_ff = 2048
+
+        self.fc1 = nn.Linear(d_model, d_ff)
+        self.dropout = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(d_ff, d_model)
+    
+    def forward(self, x):
+        x = self.relu(self.fc1(x))
+        return self.fc2(self.dropout(x))
+        
 
 
 
