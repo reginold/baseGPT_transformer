@@ -7,6 +7,7 @@ from model import InputEmbeddings
 from model import PositionalEncoding
 from model import LayerNormalization
 from model import FeedForwardBlock
+from model import MultiheadAttention
 
 def test_embeddings_output_shape():
     d_model = 512
@@ -42,3 +43,29 @@ def test_feed_forward_block_shape():
     input_tensor = torch.randn(16, 32, d_model)
     output_tensor = model(input_tensor)
     assert output_tensor.shape == input_tensor.shape
+
+def test_multihead_attention_output_shape():
+    d_model = 512
+    num_heads = 8
+    dropout_rate = 0.1
+    seq_length = 10
+    batch_size = 2
+
+    multihead_attn = MultiheadAttention(d_model, num_heads, dropout_rate)
+
+    # Dummy tensors for query, key, value, and mask
+    query = torch.randn(batch_size, seq_length, d_model)
+    key = torch.randn(batch_size, seq_length, d_model)
+    value = torch.randn(batch_size, seq_length, d_model)
+    mask = torch.randint(0, 2, (batch_size, 1, seq_length, seq_length)).bool()
+
+    # Forward pass
+    output = multihead_attn(query, key, value, mask)
+
+    # Check if output shape is correct
+    assert output.shape == (batch_size, seq_length, d_model)
+
+def test_multihead_attention_divisible_d_model():
+    # Test to check if d_model is divisible by number of heads
+    with pytest.raises(AssertionError):
+        MultiheadAttention(d_model=512, h=10, dropout=0.1) # d_model not divisible by h
