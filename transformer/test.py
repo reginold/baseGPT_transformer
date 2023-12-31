@@ -8,6 +8,8 @@ from model import PositionalEncoding
 from model import LayerNormalization
 from model import FeedForwardBlock
 from model import MultiheadAttention
+from model import ResidualConnection
+from model import Encoder, EncoderBlock
 
 def test_embeddings_output_shape():
     d_model = 512
@@ -22,7 +24,7 @@ def test_embeddings_output_shape():
 def test_positional_encoding_shape():
     d_model = 512
     seq_len = 32
-    dropout = 0.1
+    dropout =0.1
     model = PositionalEncoding(d_model, seq_len, dropout)
     input_tensor = torch.randn(seq_len, 16, d_model)
     output_tensor = model(input_tensor)
@@ -69,3 +71,47 @@ def test_multihead_attention_divisible_d_model():
     # Test to check if d_model is divisible by number of heads
     with pytest.raises(AssertionError):
         MultiheadAttention(d_model=512, h=10, dropout=0.1) # d_model not divisible by h
+
+def test_residual_connection_output_shape():
+    residual_connection = ResidualConnection(dropout=0.1)
+    dummy_sublayer = FeedForwardBlock(d_model=512, d_ff=2048, dropout=0.1)
+
+    # Dummy input tensor
+    input_tensor = torch.randn(5, 10, 512)
+
+    # Forward pass through the residual connection
+    output_tensor = residual_connection(input_tensor, dummy_sublayer)
+
+    # Check if output shape is correct
+    assert output_tensor.shape == input_tensor.shape
+
+def test_encoder_block_output_shape():
+    attention_block = MultiheadAttention(d_model=512, h=4, dropout=0.1)
+    feed_forward_block = FeedForwardBlock(d_model=512, d_ff=2048, dropout=0.1)
+    encoder_block = EncoderBlock(attention_block, feed_forward_block, dropout=0.1)
+
+    # Dummy input tensor and mask
+    input_tensor = torch.randn(2, 10, 512)  # batch_size, seq_length, d_model
+    mask = torch.randint(0, 2, (2, 1, 10, 10)).bool()
+
+    # Forward pass through the encoder block
+    output_tensor = encoder_block(input_tensor, mask)
+
+    # Check if output shape is correct
+    assert output_tensor.shape == input_tensor.shape
+
+def test_encoder_output_shape():
+    attention_block = MultiheadAttention(d_model=512, h=4, dropout=0.1)
+    feed_forward_block = FeedForwardBlock(d_model=512, d_ff=2048, dropout=0.1)
+    encoder_layers = nn.ModuleList([EncoderBlock(attention_block, feed_forward_block, dropout=0.1) for _ in range(3)])
+    encoder = Encoder(encoder_layers)
+
+    # Dummy input tensor and mask
+    input_tensor = torch.randn(2, 10, 512)  # batch_size, seq_length, d_model
+    mask = torch.randint(0, 2, (2, 1, 10, 10)).bool()
+
+    # Forward pass through the encoder
+    output_tensor = encoder(input_tensor, mask)
+
+    # Check if output shape is correct
+    assert output_tensor.shape == input_tensor.shape
