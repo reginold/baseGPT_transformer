@@ -227,4 +227,92 @@ class MappingLinear(nn.Module):
         # (batch, seq_len, d_model) -> (batch, seq_len, vocab_size)
         return torch.log_softmax(self.mapping(x), dim=-1)
 
+
+class Transformer(nn.Module):
+
+    def __init__(self,
+                encoder: Encoder,
+                decoder: Decoder,
+                src_embed: InputEmbeddings,
+                tgt_embed: InputEmbeddings,
+                src_pos: PositionalEncoding,
+                tgt_pos: PositionalEncoding,
+                mapping_liner: MappingLinear)
+
+        super().__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.src_embed = src_embed
+        self.tgt_embed = tgt_embed
+        self.src_pos = src_pos
+        self.tge_pos = tge_pos
+        self.mapping_liner = mapping_liner
+
+    def encode(self, src, src_mask):
+        x = self.src_embed(src)
+        x = self.src_pos(x)
+        return self.encoder(x, src_mask)
+
+    def decoder(self, encoder_output, src_mask, tgt, tgt_mask):
+        x = self.tgt_embed(tgt)
+        x = self.tge_pos(x)
+        return self.decoder(x, encoder_output, src_mask, tgt_mask)
+
+    def mapping(self, x):
+        return self.mapping_liner(x)
+
+
+def build_transformer(src_vocab_size: int,
+                      tgt_vocab_size: int,
+                      src_seq_len: int,
+                      tgt_seq_len: int,
+                      d_model: int = 512,
+                      h :int = 8,
+                      N: int = 6,
+                      dropout: float = 0.1):
+    # Create the embedding layer
+    src_embed = InputEmbeddings(d_model, src_vocab_size)
+    tgt_embed = InputEmbeddings(d_model, tgt_vocab_size) 
+
+    # Create the positional layer
+    src_pos = PositionalEncoding(d_model, src_seq_len, dropout)
+    tge_pos = PositionalEncoding(d_model, tgt_seq_len, dropout)
+
+    # Create the encoder blocks
+    encoder_blocks = []
+    for _ in range(N):
+        encoder_self_attention_block = MultiheadAttention(d_model, h, dropout)
+        feed_forward_block = FeedForwardBlock(d_model, d_ff, dropout)
+        encoder_block = EncoderBlock(encoder_self_attention_block, feed_forward_block, dropout)
+        encoder_blocks.append(encoder_block)
+
+    # Create the decoder blocks
+    decoder_blocks = []
+    for _ in range(N):
+        decoder_self_attention_block = MultiheadAttention(d_model, h, dropout)
+        decoder_cross_attention_block = MultiheadAttention(d_model, h, dropout)
+        feed_forward_block = FeedForwardBlock(d_model, d_ff, dropout)
+        decoder_block = DecoderBlock(decoder_self_attention_block, decoder_cross_attention_block, feed_forward_block, dropout)
+        decoder_blocks.append(decoder_block)   
+
+    # Create the encoder and decoder
+    encoder = Encoder(nn.ModuleList(encoder_blocks))
+    decoder = Decoder(nn.ModuleList(decoder_blocks))
+
+    # Create the mapping layer
+    mapping_liner = MappingLinear(d_model, tgt_vocab_siz)
+
+    # Create the transformer
+    transformer = Transformer(encoder, decoder, src_embed, tgt_embed, src_pos, tgt_pos, mapping_liner)
+
+    # Initialize the parametens
+    for p in transformer.parameters:
+        if p.dim() > 1:
+            nn.init.xavier_uniform_(p)
+
+    return transformer
+
+    
+    
+
     
