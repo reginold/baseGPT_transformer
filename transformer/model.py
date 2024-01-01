@@ -13,6 +13,7 @@ import torch.nn as nn
 # 6. Residual connection
 # 7. Encoder Block
 # 8. Encoder
+# 9. MappingLinear
 
 class InputEmbeddings(nn.Module):
 
@@ -214,3 +215,16 @@ class Decoder(nn.Module):
         for layer in self.layers:
             x = layer(x, encoder_output, src_mask, tgt_mask)
         return self.norm(x)
+
+
+class MappingLinear(nn.Module):
+
+    def __init__(self, d_model:int, vocab_size: int):
+        super().__init__()
+        self.mapping = nn.Linear(d_model, vocab_size)
+
+    def forward(self, x):
+        # (batch, seq_len, d_model) -> (batch, seq_len, vocab_size)
+        return torch.log_softmax(self.mapping(x), dim=-1)
+
+    
