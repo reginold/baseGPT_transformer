@@ -28,9 +28,47 @@ class RMSNorm(nn.Module):
     pass
 
 
-def precompute_theta_pos_freq():
-    pass
+def precompute_theta_pos_freq(head_dim: int, seq_len: int, device: str, theta: float = 10000.0):
+    """Add position-specific information to the input embeddings of the model
 
+    Args:
+        head_dim (int): _description_
+        seq_len (int): _description_
+        device (str): _description_
+        theta (float, optional): _description_. Defaults to 10000.0.
+
+    Returns:
+        freq_complex(tensor): 
+    """
+    assert head_dim % 2 == 0, "Dimension must be divisible by 2..."
+
+    theta_nume = torch.arange(0, head_dim, 2).float()
+    m = torch.arange(seq_len, device=device)
+    freq = torch.outer(m, theta_nume).float()
+    # ones_like -> This function creates a new tensor with the same shape as a given tensor, filled with ones
+    # polar -> create a complex tensor where each element is a complex number with the corresponding magnitude and phase
+    freq_complex = torch.polar(torch.ones_like(freq), freq)
+    return freq_complex
+
+    
+def apply_rotary_embeddings(x: torch.Tensor, freqs_complex: torch.Tensor, device: str):
+    # Separate the last dimension pairs of two values, representing the real and imaginary parts of the complex number
+    # Two consecutive values will become a single complex number
+    # (B, Seq_Len, H, Head_Dim) -> (B, Seq_Len, H, Head_Dim/2)
+    x_complex = torch.view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))
+    # Reshape the freqs_complex tensor to match the shape of the x_complex tensor. So we need to add the batch dimension and the head dimension
+    # (Seq_Len, Head_Dim/2) --> (1, Seq_Len, 1, Head_Dim/2)
+    freqs_complex = freqs_complex.unsqueeze(0).unsqueeze(2)
+    # Multiply each complex number in the x_complex tensor by the corresponding complex number in the freqs_complex tensor
+    # Which results in the rotation of the complex number as shown in the Figure 1 of the paper
+    # (B, Seq_Len, H, Head_Dim/2) * (1, Seq_Len, 1, Head_Dim/2) = (B, Seq_Len, H, Head_Dim/2)
+    x_rotated = x_complex * freqs_complex
+    # Convert the complex number back to the real number
+    # (B, Seq_Len, H, Head_Dim/2) -> (B, Seq_Len, H, Head_Dim/2, 2)
+    x_out = torch.view_as_real(x_rotated)
+    # (B, Seq_Len, H, Head_Dim/2, 2) -> (B, Seq_Len, H, Head_Dim)
+    x_out = x_out.reshape(*x.shape)
+    return x_out.type_as(x).to(device)
 
 class EncoderBlock(nn.Module):
     pass
