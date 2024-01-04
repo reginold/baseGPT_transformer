@@ -11,7 +11,7 @@ class ModelArgs:
     dim: int = 4096
     n_layers: int = 32
     n_heads: int = 32
-    m_kv_heads: Optional[int] = None
+    n_kv_heads: Optional[int] = None
     vocab_size: int = -1
     multiple_of: int = 256
     ffn_dim_multiplier: Optional[float] = None
@@ -272,11 +272,11 @@ class Transformer(nn.Module):
             self.layers.append(EncoderBlock(args))
 
         self.norm = RMSNorm(args.dim, eps=args.norm_eps)
-        self.output == nn.Linear(args.dim, args.vocab_size, bias=False)
+        self.output = nn.Linear(args.dim, args.vocab_size, bias=False)
         self.freqs_complex = precompute_theta_pos_freq(
             self.args.dim // self.args.n_heads,
             self.args.max_seq_len
-            * 2,  # why we need to mutiplied by 2 to extend the length?
+            * 2,  # why we need to mutiplied by 2 to extend the length? keep the enough length
             device=args.device,
         )
 
