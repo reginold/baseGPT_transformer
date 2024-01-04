@@ -11,7 +11,7 @@ class ModelArgs:
     dim: int = 4096
     n_layers: int = 32
     n_heads: int = 32
-    m_kv_heads: Optional[int]
+    m_kv_heads: Optional[int] = None
     vocab_size: int = -1
     multiple_of: int = 256
     ffn_dim_multiplier: Optional[float] = None
@@ -24,10 +24,6 @@ class ModelArgs:
     device: str = None
 
 
-class RMSNorm(nn.Module):
-    pass
-
-
 def precompute_theta_pos_freq(head_dim: int, seq_len: int, device: str, theta: float = 10000.0):
     """Add position-specific information to the input embeddings of the model
 
@@ -38,7 +34,7 @@ def precompute_theta_pos_freq(head_dim: int, seq_len: int, device: str, theta: f
         theta (float, optional): _description_. Defaults to 10000.0.
 
     Returns:
-        freq_complex(tensor): 
+        freq_complex(torch.Tensor): 
     """
     assert head_dim % 2 == 0, "Dimension must be divisible by 2..."
 
@@ -52,6 +48,16 @@ def precompute_theta_pos_freq(head_dim: int, seq_len: int, device: str, theta: f
 
     
 def apply_rotary_embeddings(x: torch.Tensor, freqs_complex: torch.Tensor, device: str):
+    """Apply the freq_complex into the rotary embeddings
+
+    Args:
+        x (torch.Tensor): _description_
+        freqs_complex (torch.Tensor): _description_
+        device (str): _description_
+
+    Returns:
+        _type_: _description_
+    """
     # Separate the last dimension pairs of two values, representing the real and imaginary parts of the complex number
     # Two consecutive values will become a single complex number
     # (B, Seq_Len, H, Head_Dim) -> (B, Seq_Len, H, Head_Dim/2)
@@ -69,6 +75,30 @@ def apply_rotary_embeddings(x: torch.Tensor, freqs_complex: torch.Tensor, device
     # (B, Seq_Len, H, Head_Dim/2, 2) -> (B, Seq_Len, H, Head_Dim)
     x_out = x_out.reshape(*x.shape)
     return x_out.type_as(x).to(device)
+
+
+class RMSNorm(nn.Module):
+    def __init__(self, dim: int, eps: float = 1e-6):
+        """Caculate the RMSNorm layer
+
+        Args:
+            dim (int): _description_
+            eps (float, optional): _description_. Defaults to 1e-6.
+        """
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def _norm(self, x: torch.Tensor):
+        # (batch, seq_len , dim) * (batch, seq_len, 1) = (batch, seq_len, dim)
+        # The keepdim=True argument keeps the number of dimensions unchanged, 
+        # which is useful for maintaining the shape for subsequent operations like element-wise division.
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+    
+    def forward(self, x: torch.Tensor):
+            # (Dim) * (B, Seq_Len, Dim) = (B, Seq_Len, Dim)
+            return self.weight * self._norm(x.float()).type_as(x)
+    
 
 class EncoderBlock(nn.Module):
     pass
