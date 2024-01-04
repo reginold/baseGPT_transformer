@@ -224,6 +224,37 @@ class SelfAttention(nn.Module):
         return self.wo(output) # (B, 1, Dim) -> (B, 1, Dim)
 
 
+class FeedForward(nn.Module):
+    def __init__(
+        self,
+        args: ModelArgs
+    ):
+        super().__init__()
+
+        # a standard design choice in transformer architectures to expand the model's capacity
+        hidden_dim = 4 * args.dim
+        hidden_dim = int(2 * hidden_dim / 3)
+        if args.ffn_dim_multiplier is not None:
+            hidden_dim = int(args.ffn_dim_multiplier * hidden_dim)
+        # Round the hidden_dim to the nearest multiple of the multiple_of parameter
+        hidden_dim = args.multiple_of * ((hidden_dim + args.multiple_of - 1) // args.multiple_of)
+
+        # llama2 swiglu formula
+        self.w1 = nn.Linear(args.dim, hidden_dim, bias=False)
+        self.w2 = nn.Linear(hidden_dim, args.dim, bias=False)
+        self.w3 = nn.Linear(args.dim, hidden_dim, bias=False)
+
+    def forward(self, x: torch.Tensor):
+        # (B, Seq_Len, Dim) --> (B, Seq_Len, Hidden_Dim)
+        swish = F.silu(self.w1(x))
+        # (B, Seq_Len, Dim) --> (B, Seq_Len, Hidden_Dim)
+        x_V = self.w3(x)
+        # (B, Seq_Len, Hidden_Dim) * (B, Seq_Len, Hidden_Dim) --> (B, Seq_Len, Hidden_Dim)
+        x = swish * x_V
+        # (B, Seq_Len, Hidden_Dim) --> (B, Seq_Len, Dim)
+        x = self.w2(x)
+        return x
+
 
 class Transformer(nn.Module):
     def __init__(self, args: ModelArgs):
